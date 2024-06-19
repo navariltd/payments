@@ -20,6 +20,26 @@ from payments.utils import erpnext_app_import_guard
 class MpesaSettings(Document):
 	supported_currencies = ["KES"]
 
+	def before_insert(self):
+		from cryptography.hazmat.primitives.asymmetric import padding
+		from cryptography.hazmat.primitives import hashes
+		from cryptography.x509 import load_pem_x509_certificate
+		from cryptography.hazmat.backends import default_backend
+		import base64
+		from frappe.utils.file_manager import get_file_path
+
+		with open(get_file_path(self.public_key_certificate), "rb") as cert_file:
+			public_key = load_pem_x509_certificate(cert_file.read(), backend=default_backend()).public_key()
+
+		ciphertext = public_key.encrypt(
+			self.online_passkey.encode("utf-8"),
+			padding.OAEP(
+				mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None
+			),
+		)
+
+		self.security_credential = base64.b64encode(ciphertext).decode("utf-8")
+
 	def validate_transaction_currency(self, currency):
 		if currency not in self.supported_currencies:
 			frappe.throw(
