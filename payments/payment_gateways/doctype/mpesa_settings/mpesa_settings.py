@@ -28,17 +28,20 @@ class MpesaSettings(Document):
 		import base64
 		from frappe.utils.file_manager import get_file_path
 
-		with open(get_file_path(self.public_key_certificate), "rb") as cert_file:
-			public_key = load_pem_x509_certificate(cert_file.read(), backend=default_backend()).public_key()
+		if self.api_type == "Disbursement":
+			file_path = get_file_path(self.public_key_certificate)
 
-		ciphertext = public_key.encrypt(
-			self.online_passkey.encode("utf-8"),
-			padding.OAEP(
-				mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None
-			),
-		)
+			with open(file_path, "rb") as cert_file:
+				public_key = load_pem_x509_certificate(cert_file.read(), backend=default_backend()).public_key()
 
-		self.security_credential = base64.b64encode(ciphertext).decode("utf-8")
+			ciphertext = public_key.encrypt(
+				self.online_passkey.encode("utf-8"),
+				padding.OAEP(
+					mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None
+				),
+			)
+
+			self.security_credential = base64.b64encode(ciphertext).decode("utf-8")
 
 	def validate_transaction_currency(self, currency):
 		if currency not in self.supported_currencies:
